@@ -4,7 +4,7 @@
 
 // for OTA updates -------------------------------------------------------------
 #include "SecureOTA.h"
-const uint16_t OTA_CHECK_INTERVAL = 5000; // ms
+const uint16_t OTA_CHECK_INTERVAL = 10000; // ms
 uint32_t lastOTACheck = 0;
 
 // for OLED screen -------------------------------------------------------------
@@ -23,7 +23,7 @@ FASTLED_USING_NAMESPACE
 #define LED_TYPE WS2811
 #define COLOR_ORDER GRB
 #define NUM_LEDS 135 // 144 - 8, 8 are in the eyes ;-), nee to add those back later
-#define BRIGHTNESS 255 // [0 - 256]
+#define BRIGHTNESS 64 // [0 - 256]
 CRGB leds[NUM_LEDS]; // contains led info, we set this first, then we call led show
 
 // LED control function declarations
@@ -42,7 +42,8 @@ void setup()
   delay(10);
   Serial.println();
   Serial.println();
-  Serial.println("GLOWL 0.1");
+  Serial.print("GLOWL ");
+  Serial.println(VERSION);
 
   // setup OLED & font to use
   uint8_t thisLine = 1;
@@ -51,7 +52,8 @@ void setup()
   u8g2.setFont(u8g2_font_5x8_mr); 
   // hello world :-)
   u8g2.setCursor(0,LINE_SPACING*thisLine++); // start at first line, then increment
-  u8g2.print("GLOWL 0.1");
+  u8g2.print("GLOWL BETA V0.");
+  u8g2.print(VERSION);
   u8g2.setCursor(0,LINE_SPACING*8); // print signature in last line
   u8g2.print("Laser Hannes 2020");
   u8g2.sendBuffer();
@@ -71,11 +73,6 @@ void setup()
   u8g2.sendBuffer();
 
   u8g2.setCursor(0,LINE_SPACING*thisLine++); 
-  u8g2.print("Firmware version V.");
-  u8g2.print(VERSION);
-  u8g2.sendBuffer();
-
-  u8g2.setCursor(0,LINE_SPACING*thisLine++); 
   u8g2.print("Connecting to Wifi:");
   u8g2.setCursor(0,LINE_SPACING*thisLine++); 
   u8g2.print(String(WIFI_SSID));
@@ -91,14 +88,50 @@ void setup()
   u8g2.print("done!"); 
   u8g2.sendBuffer();
   lastOTACheck = millis();
+
+  for (int led = 0; led < NUM_LEDS; led++)
+  {
+    leds[led] = CRGB::White;
+  }
+  FastLED.show();
+
+  // connect to time server
+  u8g2.setCursor(0,LINE_SPACING*thisLine++); 
+  u8g2.print("Waiting for time");
+  configTime(TIME_ZONE*3600, 0 , "pool.ntp.org", "time.nist.gov"); // 
+  while (!time(nullptr)) {
+    u8g2.print(".");
+    u8g2.sendBuffer();
+    delay(500);
+  }
 }
 
 void loop()
 {
+  uint8_t thisLine = 1;
+  u8g2.clearBuffer();
+  u8g2.setCursor(0,LINE_SPACING*thisLine++); // start at first line, then increment
+  u8g2.print("GLOWL BETA V0.");
+  u8g2.print(VERSION);
+
   if ((millis() - OTA_CHECK_INTERVAL) > lastOTACheck) {
     lastOTACheck = millis();
+    u8g2.setCursor(0,LINE_SPACING*thisLine++); 
+    u8g2.print("Checking for updates...");
+    time_t now = time(nullptr);
+    u8g2.setCursor(0,LINE_SPACING*8); 
+    u8g2.print(ctime(&now)); 
+    u8g2.sendBuffer();
+    u8g2.sendBuffer();
     checkFirmwareUpdates(); // takes ~1s, make sure this is not a problem in your code
   }
+  else{
+    time_t now = time(nullptr);
+    u8g2.setCursor(0,LINE_SPACING*8); 
+    u8g2.print(ctime(&now)); 
+    u8g2.sendBuffer();
+  }
+
 }
 
 void setup_leds()
